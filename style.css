@@ -241,3 +241,50 @@ h3 { margin: 18px 0 8px; font-size: 16px; }
 }
 .ach.done { opacity: 1; border-color: var(--accent); }
 .nav button { min-width: 0; }
+
+/* world: status, farm, mine, museum, trader, star */
+#status {
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted);
+  background: var(--panel-2); border: 0; border-radius: 99px; padding: 3px 9px; margin-left: 6px;
+  max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+.plots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.plot {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 124px;
+  box-shadow: var(--shadow);
+}
+.plot .big { font-size: 34px; line-height: 1.2; }
+.plot .nm { font-weight: 700; font-size: 13.5px; }
+.plot .sub { font-size: 12px; color: var(--muted); }
+.plot .pbar { display: block; width: 100%; margin: 6px 0 0; }
+.plot .pbar span { display: block; height: 100%; background: var(--good); border-radius: 99px; }
+.plot.empty, .plot.buy { border-style: dashed; background: none; box-shadow: none; }
+.plot:disabled { opacity: .45; }
+.rock {
+  width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; margin-top: 10px; padding: 14px; display: flex; flex-direction: column; align-items: center;
+}
+.rock .big { font-size: 56px; line-height: 1.1; transition: transform .07s; }
+.rock:active .big { transform: scale(.85) rotate(-6deg); }
+.rock .sub { color: var(--muted); font-size: 13px; }
+.exhibits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ex {
+  font: inherit; font-size: 24px; width: 56px; min-height: 56px; color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--panel-2); border: 1px dashed var(--line); border-radius: 10px; padding: 2px;
+}
+.ex small { font-size: 10px; color: var(--muted); }
+.ex.done { border: 1px solid var(--accent); background: var(--panel); }
+.ex.unknown { opacity: .4; }
+.ex:disabled { opacity: .6; }
+button.ex:not(:disabled) { border: 1px solid var(--good); }
+.trader { border-color: var(--accent); }
+.offer { padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--line); }
+.researched { opacity: .7; }
+#star {
+  position: fixed; z-index: 12; font-size: 40px; background: none; border: 0; padding: 8px;
+  filter: drop-shadow(0 0 10px gold); animation: twinkle 1s ease-in-out infinite alternate;
+}
+#star[hidden] { display: none; }
+@keyframes twinkle { from { transform: scale(.9) rotate(-8deg); } to { transform: scale(1.15) rotate(8deg); } }

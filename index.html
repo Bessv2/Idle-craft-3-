@@ -15,7 +15,7 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand">⚒️ Idle Craft</div>
+    <div class="brand">⚒️ Idle Craft <button id="status" data-a="status" aria-label="Season and boosts"></button></div>
     <div class="coins">🪙 <span id="coins">0</span></div>
   </header>
 
@@ -30,11 +30,13 @@
     <button data-tab="stats"><span>📖</span>Book</button>
   </nav>
 
+  <button id="star" data-a="star" hidden aria-label="Catch the shooting star">🌠</button>
   <div id="toasts"></div>
   <div id="modal" hidden><div class="box"></div></div>
 
   <script src="js/data.js"></script>
   <script src="js/features.js"></script>
+  <script src="js/world.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

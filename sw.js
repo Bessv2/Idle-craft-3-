@@ -1,7 +1,7 @@
 // Offline support: cache the game files, serve from cache, refresh in the background.
-const CACHE = 'idlecraft-v2';
+const CACHE = 'idlecraft-v3';
 const FILES = [
-  './', 'index.html', 'style.css', 'js/data.js', 'js/features.js', 'js/game.js',
+  './', 'index.html', 'style.css', 'js/data.js', 'js/features.js', 'js/world.js', 'js/game.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

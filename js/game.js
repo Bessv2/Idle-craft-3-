@@ -47,6 +47,7 @@ function newState() {
     stats: { earned: 0, crafted: 0, taps: 0, sold: 0, started: Date.now() },
     last: Date.now(),
     ...featureDefaults(),
+    ...worldDefaults(),
   };
 }
 let S = newState();
@@ -63,17 +64,17 @@ function add(id, n) {
   S.items[id] = (S.items[id] || 0) + n;
   if (!S.seen[id] && S.items[id] >= 1) { S.seen[id] = true; onDiscover(id); }
 }
-const tapPower = () => Math.ceil((1 + S.upg.tap + relicTap()) * (1 + 0.25 * perk('gather')));
-const workerMult = () => Math.pow(1.25, S.upg.worker) * relicMult('worker') * (1 + 0.25 * perk('gather'));
-const speedMult = () => Math.pow(0.85, S.upg.speed + perk('speed')) * relicMult('speed');
-const priceMult = () => Math.pow(1.1, S.upg.price) * relicMult('price') * (1 + 0.2 * perk('price')) * achMult();
+const tapPower = () => Math.ceil((1 + S.upg.tap + relicTap()) * (1 + 0.25 * perk('gather')) * worldMult('tap'));
+const workerMult = () => Math.pow(1.25, S.upg.worker) * relicMult('worker') * (1 + 0.25 * perk('gather')) * worldMult('worker');
+const speedMult = () => Math.pow(0.85, S.upg.speed + perk('speed')) * relicMult('speed') / worldMult('craft');
+const priceMult = () => Math.pow(1.1, S.upg.price) * relicMult('price') * (1 + 0.2 * perk('price')) * achMult() * worldMult('price');
 const nodeRate = id => (S.workers[id] || 0) * WORKER_BASE_RATE * workerMult();
 const hireCost = id => Math.ceil(NODE[id].hire * Math.pow(1.17, S.workers[id] || 0));
 const upgCost = u => Math.ceil(u.base * Math.pow(u.growth, S.upg[u.id]));
 const stationCost = id => Math.ceil(STATION[id].upgrade * Math.pow(4, stationState(id).lvl));
 const stationSlots = id => Math.max(1, stationState(id).lvl);
 const craftTime = r => r.t * speedMult() * Math.pow(0.95, masteryLvl(r.id));
-const sellPrice = id => VALUE[id] * priceMult() * (isHot(id) ? 2 : 1);
+const sellPrice = id => VALUE[id] * priceMult() * (isHot(id) ? hotMult() : 1);
 const nodeUnlocked = n => !n.needs || owns(n.needs);
 
 function canAfford(r, times = 1) {
@@ -108,10 +109,12 @@ function recipeVisible(r) {
 
 /* ---------- actions ---------- */
 function tapNode(id, el) {
-  const n = tapPower();
+  const n = tapAmount(); // includes combo and lucky strikes
   add(id, n);
   S.stats.taps++;
-  floatText(el, '+' + fmt(n));
+  questProgress('tap', 1);
+  buzz();
+  floatText(el, '+' + fmt(n) + tapLabel);
 }
 
 function hire(id) {
@@ -177,6 +180,7 @@ function sell(id, n) {
   S.coins += gain;
   S.stats.earned += gain;
   S.run.earned += gain;
+  questProgress('earn', gain);
   S.stats.sold += n;
 }
 
@@ -215,6 +219,7 @@ function finishJob(job) {
   const bonus = !unique && onCrafted(r) ? 2 : 1; // mastery can double a batch
   for (const [i, n] of Object.entries(r.out)) add(i, n * bonus);
   S.stats.crafted++;
+  questProgress('craft', 1);
   if (unique) {
     const it = ITEMS[recipeOut(r)];
     toast(`${it.icon} Built ${it.name}!`, true);
@@ -259,6 +264,7 @@ function step(dt) {
     if (extra > 0) sell(id, extra);
   }
   featureStep(dt);
+  worldStep(dt);
 }
 
 function advance(seconds) {
@@ -274,6 +280,7 @@ let pendingDiscoveries = [];
 let simulatingOffline = false;
 function onDiscover(id) {
   dirty = true;
+  gainInsight(3);
   if (simulatingOffline) return;
   const it = ITEMS[id];
   if (it.kind === 'raw' || it.kind === 'mat' || it.kind === 'good') {
@@ -296,11 +303,13 @@ function load() {
   S.stats = Object.assign(newState().stats, S.stats);
   const d = featureDefaults();
   for (const k of ['town', 'legacy', 'run', 'counts']) S[k] = Object.assign(d[k], S[k]);
+  const w = worldDefaults();
+  for (const k of ['season', 'farm', 'mine', 'opt']) S[k] = Object.assign(w[k], S[k]);
   S.legacy.perks = S.legacy.perks || {};
 }
 
 function applyOffline() {
-  const away = Math.min(Date.now() - (S.last || Date.now()), OFFLINE_CAP_HOURS * 3600e3) / 1000;
+  const away = Math.min(Date.now() - (S.last || Date.now()), offlineCapHours() * 3600e3) / 1000;
   if (away < 30) return;
   const beforeCoins = S.coins;
   const beforeItems = { ...S.items };
@@ -486,10 +495,11 @@ function renderMarket() {
     (marketFilter === 'all' || ITEMS[id].kind === marketFilter));
   list.sort((a, b) => (isHot(b) - isHot(a)) || VALUE[a] - VALUE[b]);
   return `
+    ${renderTrader()}
     <div class="chips">
       ${filters.map(([k, l]) => `<button class="chip ${k === marketFilter ? 'on' : ''}" data-a="mfilter" data-id="${k}">${l}</button>`).join('')}
     </div>
-    ${S.hot ? `<div class="goal"><span class="tag">In demand</span> ${ITEMS[S.hot.id].icon} <b>${ITEMS[S.hot.id].name}</b> sells for double · <span data-k="hot"></span> left</div>` : ''}
+    ${S.hot ? `<div class="goal"><span class="tag">In demand</span> ${ITEMS[S.hot.id].icon} <b>${ITEMS[S.hot.id].name}</b> sells for ${hotMult()}× · <span data-k="hot"></span> left</div>` : ''}
     <div class="card row between">
       <span class="muted small">Sell every finished good (not materials)</span>
       <button class="btn primary small" data-a="sellgoods">Sell goods</button>
@@ -537,8 +547,7 @@ function renderUpgrades() {
           <div class="muted small">${stationSlots(s.id)} slot(s)${st.lvl >= 1 ? ', auto-craft' : ''}</div></div></div>
         <button class="btn" data-a="upstation" data-id="${s.id}" data-en="upstation:${s.id}">🪙<span data-k="stcost:${s.id}"></span></button>
       </div>`;
-    }).join('')}
-    ${renderLegacy()}`;
+    }).join('')}`;
 }
 
 function renderStats() {
@@ -567,18 +576,22 @@ function renderStats() {
     </div>
     <h3>Save</h3>
     <div class="card">
-      <p class="muted small">Progress saves automatically on this device. Offline progress is counted for up to ${OFFLINE_CAP_HOURS} hours.
+      <p class="muted small">Progress saves automatically on this device. Offline progress is counted for up to ${offlineCapHours()} hours.
       Use export/import to move your save to another device.</p>
       <div class="row actions">
         <button class="btn" data-a="export">Export</button>
         <button class="btn" data-a="import">Import</button>
+        ${renderOptions()}
         <button class="btn danger" data-a="reset">Reset</button>
       </div>
     </div>
     <p class="muted small center">Idle Craft · free forever · no ads · no tracking</p>`;
 }
 
-const RENDER = { town: renderTown, gather: renderGather, craft: renderCraft, market: renderMarket, upgrades: renderUpgrades, stats: renderStats };
+const RENDER = {
+  gather: () => renderSubs('gather'), town: () => renderSubs('town'), upgrades: () => renderSubs('upgrades'),
+  craft: renderCraft, market: renderMarket, stats: renderStats,
+};
 
 function render() {
   dirty = false;
@@ -617,7 +630,7 @@ const K = {
     return st && (st.slots.some(Boolean) || st.queue.length) ? '•' : '';
   },
 };
-Object.assign(K, FEATURE_K);
+Object.assign(K, FEATURE_K, WORLD_K);
 const HTML_KEYS = new Set(['queue']);
 const E = {
   hire: id => S.coins >= hireCost(id),
@@ -626,7 +639,7 @@ const E = {
   craft: (rid, n) => canAfford(RECIPE[rid], +n),
   sell: id => have(id) >= 1,
 };
-Object.assign(E, FEATURE_E);
+Object.assign(E, FEATURE_E, WORLD_E);
 
 function call(map, key) {
   const [name, ...args] = key.split(':');
@@ -635,6 +648,7 @@ function call(map, key) {
 
 function refresh() {
   $('#coins').textContent = fmt(S.coins);
+  worldRefresh();
   view.querySelectorAll('[data-k]').forEach(el => {
     const v = call(K, el.dataset.k);
     const isHtml = HTML_KEYS.has(el.dataset.k.split(':')[0]);
@@ -643,12 +657,8 @@ function refresh() {
   });
   view.querySelectorAll('[data-en]').forEach(el => { el.disabled = !call(E, el.dataset.en); });
   view.querySelectorAll('[data-w]').forEach(el => {
-    if (el.dataset.w === 'exp') {
-      const e = S.exp && EXPEDITIONS.find(x => x.id === S.exp.id);
-      const left = e ? Math.max(0, S.exp.end - Date.now()) / 1000 : 0;
-      el.style.width = (e ? Math.min(100, (1 - left / expTime(e)) * 100) : 0) + '%';
-      return;
-    }
+    const [kind, ...args] = el.dataset.w.split(':');
+    if (WIDTHS[kind]) { el.style.width = WIDTHS[kind](...args) + '%'; return; }
     const [, sid, i] = el.dataset.w.split(':');
     const s = slotInfo(sid, +i);
     el.style.width = (s ? s.p * 100 : 0) + '%';
@@ -749,7 +759,7 @@ function closeModal() { $('#modal').hidden = true; }
 let lastTick = Date.now();
 function loop() {
   const now = Date.now();
-  const dt = Math.min((now - lastTick) / 1000, OFFLINE_CAP_HOURS * 3600);
+  const dt = Math.min((now - lastTick) / 1000, offlineCapHours() * 3600);
   lastTick = now;
   advance(dt);
   if (pendingDiscoveries.length) {
@@ -758,6 +768,7 @@ function loop() {
     toast('New: ' + shown + (ids.length > 4 ? ` +${ids.length - 4} more` : ''));
   }
   featureLoop();
+  worldLoop();
   if (dirty) render(); else refresh();
 }
 

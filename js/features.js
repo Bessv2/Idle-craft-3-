@@ -101,7 +101,7 @@ function featureDefaults() {
     ach: {},
     legacy: { pts: 0, total: 0, count: 0, perks: {} },
     run: { earned: 0 },
-    counts: { orders: 0, exps: 0 },
+    counts: { orders: 0, exps: 0, harvest: 0, stars: 0, trades: 0 },
   };
 }
 
@@ -133,9 +133,10 @@ function onCrafted(r) {
   const lvl = masteryLvl(r.id);
   if (lvl > before) {
     dirty = true;
+    gainInsight(1);
     if (!simulatingOffline) toast(`★ ${ITEMS[recipeOut(r)].name} mastery ${lvl}`);
   }
-  return Math.random() < 0.05 * lvl;
+  return Math.random() < (S.research.class ? 0.08 : 0.05) * lvl;
 }
 
 /* ---------- town orders ---------- */
@@ -155,7 +156,7 @@ function genOrder() {
   const budget = (25 + 20 * S.town.lvl * S.town.lvl) * (0.6 + Math.random() * 0.9);
   return { item, n: Math.max(1, Math.round(budget / VALUE[item])) };
 }
-const orderReward = o => Math.ceil(VALUE[o.item] * o.n * 2.5 * priceMult() * relicMult('order'));
+const orderReward = o => Math.ceil(VALUE[o.item] * o.n * (S.research.haggle ? 3 : 2.5) * priceMult() * relicMult('order'));
 
 function deliverOrder(i) {
   const o = S.orders[i];
@@ -166,6 +167,8 @@ function deliverOrder(i) {
   S.stats.earned += gain;
   S.run.earned += gain;
   S.counts.orders++;
+  questProgress('order', 1);
+  gainInsight(1);
   S.town.xp++;
   while (S.town.xp >= townNeed()) {
     S.town.xp -= townNeed();
@@ -181,8 +184,8 @@ function dismissOrder(i) {
 }
 
 /* ---------- expeditions ---------- */
-const expTime = e => e.time * relicMult('exp');
-const expLootMult = () => (1 + 0.1 * S.town.lvl) * (1 + 0.25 * perk('gather'));
+const expTime = e => e.time * relicMult('exp') * Math.max(0.5, 1 - 0.05 * petLvl('dog'));
+const expLootMult = () => (1 + 0.1 * S.town.lvl) * (1 + 0.25 * perk('gather')) * (S.research.maps ? 1.5 : 1) * (wing('cloth') ? 1.2 : 1);
 function startExpedition(id) {
   const e = EXPEDITIONS.find(x => x.id === id);
   if (S.exp || !owns(e.needs) || !canAfford({ in: e.cost })) return;
@@ -195,6 +198,7 @@ function claimExpedition() {
   const e = EXPEDITIONS.find(x => x.id === S.exp.id);
   S.exp = null;
   S.counts.exps++;
+  gainInsight(3);
   const found = [];
   for (const [id, [lo, hi]] of Object.entries(e.loot)) {
     const n = Math.round((lo + Math.random() * (hi - lo)) * expLootMult());
@@ -239,7 +243,7 @@ function setSail() {
   const keepFrac = Math.min(1, 0.2 * perk('mastery'));
   const mastery = {};
   for (const [k, v] of Object.entries(S.mastery)) if (v * keepFrac >= 1) mastery[k] = v * keepFrac;
-  const keep = { stats: S.stats, relics: S.relics, ach: S.ach, legacy: S.legacy, counts: S.counts, mastery };
+  const keep = { stats: S.stats, relics: S.relics, ach: S.ach, legacy: S.legacy, counts: S.counts, mastery, ...worldKeep() };
   S = Object.assign(newState(), keep);
   S.legacy.pts += gain;
   S.legacy.total += gain;
@@ -302,7 +306,7 @@ function costChips(cost) {
     `<span class="need" data-c="need:${i}:${n}">${ITEMS[i].icon} <span data-k="n:${i}"></span>/${n}</span>`).join('');
 }
 
-function renderTown() {
+function renderOrders() {
   const slots = orderSlots();
   const hasPool = orderPool().length > 0;
   return `
@@ -313,7 +317,6 @@ function renderTown() {
       <div class="muted small">Deliver orders to grow the town. A bigger town places bigger orders and improves expedition loot.</div>
     </div>
 
-    <h3>Orders</h3>
     ${hasPool ? '' : '<p class="muted center">Craft something first — the townsfolk will start asking for it.</p>'}
     ${S.orders.slice(0, slots).map((o, i) => o.item ? `
       <div class="card">
@@ -328,9 +331,12 @@ function renderTown() {
           <button class="btn primary" data-a="deliver" data-n="${i}" data-en="order:${i}">Deliver</button>
           <button class="btn" data-a="dismiss" data-n="${i}">Skip</button>
         </div>
-      </div>` : (hasPool ? `<div class="card muted center small">✉️ A new order is on its way…</div>` : '')).join('')}
+      </div>` : (hasPool ? `<div class="card muted center small">✉️ A new order is on its way…</div>` : '')).join('')}`;
+}
 
-    <h3>Expeditions</h3>
+function renderExpeditions() {
+  return `
+    <p class="muted small">Send explorers out with supplies. They return with resources — sometimes ones you can't gather yet — and maybe a relic.</p>
     ${S.exp ? (() => {
       const e = EXPEDITIONS.find(x => x.id === S.exp.id);
       return `<div class="card station">
@@ -383,7 +389,7 @@ function renderLegacy() {
     <h3>Legacy <span class="muted small">⭐ ${S.legacy.pts} to spend</span></h3>
     <div class="card">
       <p class="muted small">Build a 🚢 Ship, then set sail for a new land. You start over, but earn
-      ⭐ Legacy for permanent perks. Relics, achievements and stats are kept.</p>
+      ⭐ Legacy for permanent perks. Relics, pets, research, the museum and achievements are kept.</p>
       <div class="row between">
         <span class="small">${canSail() ? `Sailing now earns <b>⭐ ${legacyGain()}</b>` : 'You need a Ship to set sail.'}</span>
         <button class="btn primary" data-a="sail" ${canSail() ? '' : 'disabled'}>⛵ Set sail</button>
@@ -423,12 +429,12 @@ function featureAction(a, id, n) {
       showModal(`<h2>⛵ Set sail?</h2>
         <p class="muted">You will leave everything behind — coins, items, workers, upgrades and stations —
         and start again in a new land with <b>⭐ ${legacyGain()} Legacy</b>.</p>
-        <p class="muted small">Kept: relics, achievements, stats and Legacy perks.</p>
+        <p class="muted small">Kept: relics, pets, research, museum, achievements, stats and Legacy perks.</p>
         <div class="row actions"><button class="btn primary" data-a="do-sail">Set sail</button>
         <button class="btn" data-a="close-modal">Stay</button></div>`);
       break;
     case 'do-sail': closeModal(); setSail(); break;
-    default: return false;
+    default: return worldAction(a, id, n);
   }
   return true;
 }

@@ -20,6 +20,17 @@ everything until you can build a ship.
 - **In demand**: one item sells for double in the market, rotating every 5 minutes.
 - **Legacy**: once you build a Ship you can set sail for a new land. You start over, but earn
   ⭐ Legacy to spend on permanent perks. Relics, achievements and stats are kept.
+- **Farm** (Gather tab, needs a Stone Hoe): buy plots, plant crops, harvest. More plots unlock new crops.
+- **Mine** (Gather tab, needs a Stone Pickaxe): tap to dig down floor by floor. Outfit a crew with
+  crafted gear and they dig while you're away. Every 5th floor hides a treasure.
+- **Kitchen and Tavern**: cook crops into meals, then eat them for timed boosts.
+- **Pets**: adopt six animals, each with its own bonus, and level them up with their favourite food.
+- **Museum**: donate crafted items. Each exhibit adds +1% sell prices, and each finished wing gives a permanent bonus.
+- **Quest board**: three odd jobs at a time, with no timers.
+- **Research**: spend 💡 insight (earned all over the game) on permanent unlocks like self-harvesting plots.
+- **Seasons** change every 10 minutes, each boosting a different part of the game.
+- **Wandering trader**: turns up in the Market now and then to swap your surplus for other resources.
+- **Combos and shooting stars**: quick taps build up to a 3× combo, and a 🌠 sometimes drifts by — catch it for a gift.
 - **Book**: your collection, achievements (each adds +1% sell prices), stats, and save export/import.
 
 Progress saves on your device and keeps running while you're away (up to 12 hours).
@@ -42,5 +53,6 @@ It's a plain static web page, with no build step and no dependencies.
 
 All items, gathering spots, recipes and upgrades live in [`js/data.js`](js/data.js).
 Relics, expeditions, legacy perks and achievements are at the top of [`js/features.js`](js/features.js).
+Crops, meals, pets, research, mine gear, museum wings and quests are at the top of [`js/world.js`](js/world.js).
 Add an item to `ITEMS` and a recipe to `RECIPES`; sell prices are worked out
 automatically from the ingredients and craft time.
