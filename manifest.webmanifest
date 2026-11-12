@@ -1,0 +1,16 @@
+{
+  "name": "Idle Craft",
+  "short_name": "Idle Craft",
+  "description": "A free idle crafting game. No ads, no paywalls, no tracking.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b2118",
+  "theme_color": "#2b2118",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
