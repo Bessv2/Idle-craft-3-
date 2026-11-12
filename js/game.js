@@ -46,6 +46,7 @@ function newState() {
     autosell: {},
     stats: { earned: 0, crafted: 0, taps: 0, sold: 0, started: Date.now() },
     last: Date.now(),
+    ...featureDefaults(),
   };
 }
 let S = newState();
@@ -62,17 +63,17 @@ function add(id, n) {
   S.items[id] = (S.items[id] || 0) + n;
   if (!S.seen[id] && S.items[id] >= 1) { S.seen[id] = true; onDiscover(id); }
 }
-const tapPower = () => 1 + S.upg.tap;
-const workerMult = () => Math.pow(1.25, S.upg.worker);
-const speedMult = () => Math.pow(0.85, S.upg.speed);
-const priceMult = () => Math.pow(1.1, S.upg.price);
+const tapPower = () => Math.ceil((1 + S.upg.tap + relicTap()) * (1 + 0.25 * perk('gather')));
+const workerMult = () => Math.pow(1.25, S.upg.worker) * relicMult('worker') * (1 + 0.25 * perk('gather'));
+const speedMult = () => Math.pow(0.85, S.upg.speed + perk('speed')) * relicMult('speed');
+const priceMult = () => Math.pow(1.1, S.upg.price) * relicMult('price') * (1 + 0.2 * perk('price')) * achMult();
 const nodeRate = id => (S.workers[id] || 0) * WORKER_BASE_RATE * workerMult();
 const hireCost = id => Math.ceil(NODE[id].hire * Math.pow(1.17, S.workers[id] || 0));
 const upgCost = u => Math.ceil(u.base * Math.pow(u.growth, S.upg[u.id]));
 const stationCost = id => Math.ceil(STATION[id].upgrade * Math.pow(4, stationState(id).lvl));
 const stationSlots = id => Math.max(1, stationState(id).lvl);
-const craftTime = r => r.t * speedMult();
-const sellPrice = id => VALUE[id] * priceMult();
+const craftTime = r => r.t * speedMult() * Math.pow(0.95, masteryLvl(r.id));
+const sellPrice = id => VALUE[id] * priceMult() * (isHot(id) ? 2 : 1);
 const nodeUnlocked = n => !n.needs || owns(n.needs);
 
 function canAfford(r, times = 1) {
@@ -175,6 +176,7 @@ function sell(id, n) {
   const gain = sellPrice(id) * n;
   S.coins += gain;
   S.stats.earned += gain;
+  S.run.earned += gain;
   S.stats.sold += n;
 }
 
@@ -209,9 +211,11 @@ function nextJob(stationId) {
 
 function finishJob(job) {
   const r = RECIPE[job.r];
-  for (const [i, n] of Object.entries(r.out)) add(i, n);
+  const unique = isUnique(recipeOut(r));
+  const bonus = !unique && onCrafted(r) ? 2 : 1; // mastery can double a batch
+  for (const [i, n] of Object.entries(r.out)) add(i, n * bonus);
   S.stats.crafted++;
-  if (isUnique(recipeOut(r))) {
+  if (unique) {
     const it = ITEMS[recipeOut(r)];
     toast(`${it.icon} Built ${it.name}!`, true);
     dirty = true;
@@ -254,6 +258,7 @@ function step(dt) {
     const extra = have(id) - keep;
     if (extra > 0) sell(id, extra);
   }
+  featureStep(dt);
 }
 
 function advance(seconds) {
@@ -289,6 +294,9 @@ function load() {
   try { S = Object.assign(newState(), JSON.parse(raw)); } catch (e) { return; }
   S.upg = Object.assign(newState().upg, S.upg);
   S.stats = Object.assign(newState().stats, S.stats);
+  const d = featureDefaults();
+  for (const k of ['town', 'legacy', 'run', 'counts']) S[k] = Object.assign(d[k], S[k]);
+  S.legacy.perks = S.legacy.perks || {};
 }
 
 function applyOffline() {
@@ -325,6 +333,7 @@ function importSave(str) {
   if (typeof data !== 'object' || data.items === undefined) throw new Error('bad save');
   S = Object.assign(newState(), data);
   save();
+  load();
 }
 
 /* ---------- formatting ---------- */
@@ -449,7 +458,8 @@ function renderCraft() {
                 : `🪙${fmt(sellPrice(out))} each`} · ⏱ ${craftTime(r).toFixed(1)}s</div>
             </div>
           </div>
-          <span class="own" data-k="n:${out}"></span>
+          <div class="ownbox"><span class="own" data-k="n:${out}"></span>
+            ${uniq ? '' : `<span class="mast" data-k="mast:${r.id}" title="Mastery: faster crafting and a chance of double output"></span>`}</div>
         </div>
         <div class="inputs">
           ${Object.entries(r.in).map(([i, n]) => `
@@ -474,11 +484,12 @@ function renderMarket() {
   const filters = [['all', 'All'], ['raw', 'Raw'], ['mat', 'Materials'], ['good', 'Goods']];
   const list = Object.keys(ITEMS).filter(id => S.seen[id] && !isUnique(id) &&
     (marketFilter === 'all' || ITEMS[id].kind === marketFilter));
-  list.sort((a, b) => VALUE[a] - VALUE[b]);
+  list.sort((a, b) => (isHot(b) - isHot(a)) || VALUE[a] - VALUE[b]);
   return `
     <div class="chips">
       ${filters.map(([k, l]) => `<button class="chip ${k === marketFilter ? 'on' : ''}" data-a="mfilter" data-id="${k}">${l}</button>`).join('')}
     </div>
+    ${S.hot ? `<div class="goal"><span class="tag">In demand</span> ${ITEMS[S.hot.id].icon} <b>${ITEMS[S.hot.id].name}</b> sells for double · <span data-k="hot"></span> left</div>` : ''}
     <div class="card row between">
       <span class="muted small">Sell every finished good (not materials)</span>
       <button class="btn primary small" data-a="sellgoods">Sell goods</button>
@@ -491,7 +502,7 @@ function renderMarket() {
       <div class="card mrow">
         <div class="rname"><span class="big2">${it.icon}</span>
           <div><b>${it.name}</b> <span class="muted small">×<span data-k="n:${id}"></span></span>
-            <div class="muted small">🪙${fmt(sellPrice(id), 1)} each</div></div>
+            <div class="muted small">🪙${fmt(sellPrice(id), 1)} each${isHot(id) ? ' <span class="hot">🔥 in demand</span>' : ''}</div></div>
         </div>
         <div class="row actions">
           <button class="btn small" data-a="sell" data-id="${id}" data-n="1" data-en="sell:${id}">1</button>
@@ -526,7 +537,8 @@ function renderUpgrades() {
           <div class="muted small">${stationSlots(s.id)} slot(s)${st.lvl >= 1 ? ', auto-craft' : ''}</div></div></div>
         <button class="btn" data-a="upstation" data-id="${s.id}" data-en="upstation:${s.id}">🪙<span data-k="stcost:${s.id}"></span></button>
       </div>`;
-    }).join('')}`;
+    }).join('')}
+    ${renderLegacy()}`;
 }
 
 function renderStats() {
@@ -540,6 +552,7 @@ function renderStats() {
         ? `<div class="ci" title="${esc(ITEMS[id].name)}">${ITEMS[id].icon}<small>${esc(ITEMS[id].name)}</small></div>`
         : `<div class="ci unknown">❓<small>???</small></div>`).join('')}
     </div>
+    ${renderAchievements()}
     <h3>Stats</h3>
     <div class="card stats">
       <div>Coins earned</div><div>🪙 ${fmt(S.stats.earned)}</div>
@@ -547,6 +560,9 @@ function renderStats() {
       <div>Items sold</div><div>${fmt(S.stats.sold)}</div>
       <div>Taps</div><div>${fmt(S.stats.taps)}</div>
       <div>Workers</div><div>${workers}</div>
+      <div>Orders delivered</div><div>${fmt(S.counts.orders)}</div>
+      <div>Expeditions</div><div>${fmt(S.counts.exps)}</div>
+      <div>Voyages</div><div>${S.legacy.count}</div>
       <div>Playing since</div><div>${new Date(S.stats.started).toLocaleDateString()}</div>
     </div>
     <h3>Save</h3>
@@ -562,7 +578,7 @@ function renderStats() {
     <p class="muted small center">Idle Craft · free forever · no ads · no tracking</p>`;
 }
 
-const RENDER = { gather: renderGather, craft: renderCraft, market: renderMarket, upgrades: renderUpgrades, stats: renderStats };
+const RENDER = { town: renderTown, gather: renderGather, craft: renderCraft, market: renderMarket, upgrades: renderUpgrades, stats: renderStats };
 
 function render() {
   dirty = false;
@@ -601,6 +617,7 @@ const K = {
     return st && (st.slots.some(Boolean) || st.queue.length) ? '•' : '';
   },
 };
+Object.assign(K, FEATURE_K);
 const HTML_KEYS = new Set(['queue']);
 const E = {
   hire: id => S.coins >= hireCost(id),
@@ -609,6 +626,7 @@ const E = {
   craft: (rid, n) => canAfford(RECIPE[rid], +n),
   sell: id => have(id) >= 1,
 };
+Object.assign(E, FEATURE_E);
 
 function call(map, key) {
   const [name, ...args] = key.split(':');
@@ -625,6 +643,12 @@ function refresh() {
   });
   view.querySelectorAll('[data-en]').forEach(el => { el.disabled = !call(E, el.dataset.en); });
   view.querySelectorAll('[data-w]').forEach(el => {
+    if (el.dataset.w === 'exp') {
+      const e = S.exp && EXPEDITIONS.find(x => x.id === S.exp.id);
+      const left = e ? Math.max(0, S.exp.end - Date.now()) / 1000 : 0;
+      el.style.width = (e ? Math.min(100, (1 - left / expTime(e)) * 100) : 0) + '%';
+      return;
+    }
     const [, sid, i] = el.dataset.w.split(':');
     const s = slotInfo(sid, +i);
     el.style.width = (s ? s.p * 100 : 0) + '%';
@@ -687,6 +711,7 @@ document.addEventListener('click', e => {
       S = newState(); save(); closeModal(); setTab('gather'); toast('Fresh start!');
       break;
     case 'close-modal': closeModal(); break;
+    default: featureAction(a, id, n);
   }
   if (dirty) render(); else refresh();
 });
@@ -732,6 +757,7 @@ function loop() {
     const shown = ids.slice(0, 4).map(id => `${ITEMS[id].icon} ${ITEMS[id].name}`).join(', ');
     toast('New: ' + shown + (ids.length > 4 ? ` +${ids.length - 4} more` : ''));
   }
+  featureLoop();
   if (dirty) render(); else refresh();
 }
 
