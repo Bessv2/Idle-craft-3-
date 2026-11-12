@@ -288,3 +288,23 @@ button.ex:not(:disabled) { border: 1px solid var(--good); }
 }
 #star[hidden] { display: none; }
 @keyframes twinkle { from { transform: scale(.9) rotate(-8deg); } to { transform: scale(1.15) rotate(8deg); } }
+
+/* adventure */
+.nav button { font-size: 11px; }
+#advwrap { position: relative; }
+.advhud { background: var(--panel); border: 1px solid var(--line); border-radius: 12px 12px 0 0; padding: 8px 10px 4px; }
+.advhud .pbar { margin: 4px 0; height: 7px; }
+.pbar.hp div { background: #e5484d; }
+.pbar.xp div { background: #3d8bfd; }
+.pbar.xp { height: 4px !important; }
+#advhost { height: calc(100vh - 330px); height: calc(100dvh - 330px); min-height: 300px; border-radius: 0 0 12px 12px; overflow: hidden; background: #333; }
+#advcanvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.advbtns { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 10px; }
+.advbtn {
+  width: 62px; height: 62px; border-radius: 50%; border: 2px solid rgba(255,255,255,.7);
+  background: rgba(30, 22, 16, .6); color: #fff; font: inherit; font-size: 26px; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.advbtn small { font-size: 11px; }
+.advbtn:active { transform: scale(.92); }
+.gear { padding-left: 10px; }

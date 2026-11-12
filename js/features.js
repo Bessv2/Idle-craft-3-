@@ -243,7 +243,7 @@ function setSail() {
   const keepFrac = Math.min(1, 0.2 * perk('mastery'));
   const mastery = {};
   for (const [k, v] of Object.entries(S.mastery)) if (v * keepFrac >= 1) mastery[k] = v * keepFrac;
-  const keep = { stats: S.stats, relics: S.relics, ach: S.ach, legacy: S.legacy, counts: S.counts, mastery, ...worldKeep() };
+  const keep = { stats: S.stats, relics: S.relics, ach: S.ach, legacy: S.legacy, counts: S.counts, mastery, ...worldKeep(), ...advKeep() };
   S = Object.assign(newState(), keep);
   S.legacy.pts += gain;
   S.legacy.total += gain;
@@ -429,7 +429,7 @@ function featureAction(a, id, n) {
       showModal(`<h2>⛵ Set sail?</h2>
         <p class="muted">You will leave everything behind — coins, items, workers, upgrades and stations —
         and start again in a new land with <b>⭐ ${legacyGain()} Legacy</b>.</p>
-        <p class="muted small">Kept: relics, pets, research, museum, achievements, stats and Legacy perks.</p>
+        <p class="muted small">Kept: your hero and gear, relics, pets, research, museum, achievements, stats and Legacy perks.</p>
         <div class="row actions"><button class="btn primary" data-a="do-sail">Set sail</button>
         <button class="btn" data-a="close-modal">Stay</button></div>`);
       break;

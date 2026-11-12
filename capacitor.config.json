@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.bessv2.idlecraft",
+  "appName": "Idle Craft",
+  "webDir": "www",
+  "backgroundColor": "#2b2118",
+  "android": {
+    "backgroundColor": "#2b2118"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "idle-craft",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A free idle crafting and adventure game. No ads, no paywalls, no tracking.",
+  "scripts": {
+    "build:web": "node scripts/build-web.js",
+    "android:prepare": "npm run build:web && (test -d android || npx cap add android) && npx cap sync android && npx @capacitor/assets generate --android --iconBackgroundColor '#2b2118' --iconBackgroundColorDark '#2b2118' --splashBackgroundColor '#2b2118' --splashBackgroundColorDark '#2b2118' && node scripts/android-patch.js",
+    "android:apk": "npm run android:prepare && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.0"
+  }
+}

@@ -31,6 +31,10 @@ everything until you can build a ship.
 - **Seasons** change every 10 minutes, each boosting a different part of the game.
 - **Wandering trader**: turns up in the Market now and then to swap your surplus for other resources.
 - **Combos and shooting stars**: quick taps build up to a 3× combo, and a 🌠 sometimes drifts by — catch it for a gift.
+- **Hero**: walk a hero around open zones with an on-screen joystick. Monsters roam, you attack automatically,
+  and they drop coins, materials and gear in five rarities. Each zone has a boss that opens the next zone.
+  Reforge your crafted swords, shields and rings into gear, upgrade it with essence, and raise the threat
+  level once every boss is beaten.
 - **Book**: your collection, achievements (each adds +1% sell prices), stats, and save export/import.
 
 Progress saves on your device and keeps running while you're away (up to 12 hours).
@@ -43,6 +47,18 @@ It's a plain static web page, with no build step and no dependencies.
 - **On your phone:** host it on GitHub Pages (below), open the link, and choose
   *Add to Home screen*. It installs like an app and works offline.
 
+### Android app (APK)
+
+Every push to `main` builds an APK automatically. On your phone, open the repository's
+**Releases** page, pick **Latest APK**, download `idle-craft.apk` and open it. Android will ask
+you to allow installing apps from your browser the first time.
+
+Newer builds install over older ones and keep your save. To build it yourself you need Node 20+,
+Java 21 and the Android SDK, then run `npm install && npm run android:apk`.
+
+`android-debug.keystore` is a shared, non-secret debug signing key so that every build has the
+same signature. A Play Store release would need its own private key instead.
+
 ### GitHub Pages
 
 1. Merge into `main`.
@@ -53,6 +69,7 @@ It's a plain static web page, with no build step and no dependencies.
 
 All items, gathering spots, recipes and upgrades live in [`js/data.js`](js/data.js).
 Relics, expeditions, legacy perks and achievements are at the top of [`js/features.js`](js/features.js).
+Zones, monsters and gear are at the top of [`js/adventure.js`](js/adventure.js).
 Crops, meals, pets, research, mine gear, museum wings and quests are at the top of [`js/world.js`](js/world.js).
 Add an item to `ITEMS` and a recipe to `RECIPES`; sell prices are worked out
 automatically from the ingredients and craft time.

@@ -750,7 +750,7 @@ function worldAction(a, id, n, el) {
         <button class="btn primary wide" data-a="close-modal">OK</button>`);
       break;
     }
-    default: return false;
+    default: return advAction(a, id, n);
   }
   return true;
 }

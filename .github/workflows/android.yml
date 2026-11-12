@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Build APK
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          npm run android:apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk idle-craft.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: idle-craft-apk
+          path: idle-craft.apk
+      # Publishes the APK at a fixed link: Releases -> "Latest APK"
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Latest APK
+          body: |
+            Install on Android: download `idle-craft.apk` below on your phone and open it.
+            You may need to allow "install unknown apps" for your browser.
+            Build ${{ github.run_number }} from ${{ github.sha }}.
+          files: idle-craft.apk
+          make_latest: true

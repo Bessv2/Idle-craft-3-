@@ -48,6 +48,7 @@ function newState() {
     last: Date.now(),
     ...featureDefaults(),
     ...worldDefaults(),
+    ...advDefaults(),
   };
 }
 let S = newState();
@@ -65,7 +66,7 @@ function add(id, n) {
   if (!S.seen[id] && S.items[id] >= 1) { S.seen[id] = true; onDiscover(id); }
 }
 const tapPower = () => Math.ceil((1 + S.upg.tap + relicTap()) * (1 + 0.25 * perk('gather')) * worldMult('tap'));
-const workerMult = () => Math.pow(1.25, S.upg.worker) * relicMult('worker') * (1 + 0.25 * perk('gather')) * worldMult('worker');
+const workerMult = () => Math.pow(1.25, S.upg.worker) * relicMult('worker') * (1 + 0.25 * perk('gather')) * worldMult('worker') * heroWorkerMult();
 const speedMult = () => Math.pow(0.85, S.upg.speed + perk('speed')) * relicMult('speed') / worldMult('craft');
 const priceMult = () => Math.pow(1.1, S.upg.price) * relicMult('price') * (1 + 0.2 * perk('price')) * achMult() * worldMult('price');
 const nodeRate = id => (S.workers[id] || 0) * WORKER_BASE_RATE * workerMult();
@@ -305,6 +306,7 @@ function load() {
   for (const k of ['town', 'legacy', 'run', 'counts']) S[k] = Object.assign(d[k], S[k]);
   const w = worldDefaults();
   for (const k of ['season', 'farm', 'mine', 'opt']) S[k] = Object.assign(w[k], S[k]);
+  S.adv = Object.assign(advDefaults().adv, S.adv);
   S.legacy.perks = S.legacy.perks || {};
 }
 
@@ -590,12 +592,13 @@ function renderStats() {
 
 const RENDER = {
   gather: () => renderSubs('gather'), town: () => renderSubs('town'), upgrades: () => renderSubs('upgrades'),
-  craft: renderCraft, market: renderMarket, stats: renderStats,
+  craft: renderCraft, market: renderMarket, stats: renderStats, hero: () => renderSubs('hero'),
 };
 
 function render() {
   dirty = false;
   view.innerHTML = RENDER[tab]();
+  advMount();
   refresh();
 }
 
@@ -630,7 +633,7 @@ const K = {
     return st && (st.slots.some(Boolean) || st.queue.length) ? '•' : '';
   },
 };
-Object.assign(K, FEATURE_K, WORLD_K);
+Object.assign(K, FEATURE_K, WORLD_K, ADV_K);
 const HTML_KEYS = new Set(['queue']);
 const E = {
   hire: id => S.coins >= hireCost(id),
@@ -639,7 +642,7 @@ const E = {
   craft: (rid, n) => canAfford(RECIPE[rid], +n),
   sell: id => have(id) >= 1,
 };
-Object.assign(E, FEATURE_E, WORLD_E);
+Object.assign(E, FEATURE_E, WORLD_E, ADV_E);
 
 function call(map, key) {
   const [name, ...args] = key.split(':');
@@ -781,6 +784,7 @@ setInterval(save, 10000);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 window.addEventListener('pagehide', save);
 
-if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window.self) {
+// Offline cache for the web version; the Android app already ships its files, so it skips this.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window.self && !window.Capacitor) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
