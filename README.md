@@ -65,6 +65,14 @@ same signature. A Play Store release would need its own private key instead.
 2. In the repository, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
 3. The included workflow publishes it at `https://<your-username>.github.io/<repo-name>/`.
 
+## Art and credits
+
+- Icons by Lorc, Delapouite and contributors from [game-icons.net](https://game-icons.net), licensed CC BY 3.0.
+- Fonts: Lilita One and Nunito, SIL Open Font License.
+
+The game's text uses emoji as shorthand; `js/gfx.js` swaps each one for a drawn icon when the page renders.
+To change an icon or its colour, edit the table in `scripts/build-icons.js` and run `node scripts/build-icons.js`.
+
 ## Adding content
 
 All items, gathering spots, recipes and upgrades live in [`js/data.js`](js/data.js).

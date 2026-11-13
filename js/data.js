@@ -64,7 +64,7 @@ const ITEMS = {
   // --- tools (unlock gathering spots) ---
   stone_pickaxe:  { name: 'Stone Pickaxe',  icon: '⛏️', kind: 'tool' },
   stone_shovel:   { name: 'Stone Shovel',   icon: '🪏', kind: 'tool' },
-  stone_hoe:      { name: 'Stone Hoe',      icon: '🔱', kind: 'tool' },
+  stone_hoe:      { name: 'Stone Hoe',      icon: '🧹', kind: 'tool' },
   copper_pickaxe: { name: 'Copper Pickaxe', icon: '⛏️', kind: 'tool' },
   shears:         { name: 'Shears',         icon: '✂️', kind: 'tool' },
   sickle:         { name: 'Sickle',         icon: '🌙', kind: 'tool' },

@@ -1,8 +1,8 @@
 // Offline support: cache the game files, serve from cache, refresh in the background.
-const CACHE = 'idlecraft-v4';
+const CACHE = 'idlecraft-v5';
 const FILES = [
-  './', 'index.html', 'style.css', 'js/data.js', 'js/features.js', 'js/world.js', 'js/adventure.js', 'js/game.js',
-  'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
+  './', 'index.html', 'style.css', 'js/icons.js', 'js/gfx.js', 'js/data.js', 'js/features.js', 'js/world.js', 'js/adventure.js', 'js/game.js',
+  'manifest.webmanifest', 'fonts/lilita-one.woff2', 'fonts/nunito-700.woff2', 'fonts/nunito-800.woff2', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
 self.addEventListener('install', e => {

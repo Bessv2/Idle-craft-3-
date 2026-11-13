@@ -514,7 +514,7 @@ function renderMarket() {
       <div class="card mrow">
         <div class="rname"><span class="big2">${it.icon}</span>
           <div><b>${it.name}</b> <span class="muted small">×<span data-k="n:${id}"></span></span>
-            <div class="muted small">🪙${fmt(sellPrice(id), 1)} each${isHot(id) ? ' <span class="hot">🔥 in demand</span>' : ''}</div></div>
+            <div class="muted small">🪙${fmt(sellPrice(id), 1)} each${isHot(id) ? ' <span class="hot">⭐ in demand</span>' : ''}</div></div>
         </div>
         <div class="row actions">
           <button class="btn small" data-a="sell" data-id="${id}" data-n="1" data-en="sell:${id}">1</button>
@@ -587,7 +587,7 @@ function renderStats() {
         <button class="btn danger" data-a="reset">Reset</button>
       </div>
     </div>
-    <p class="muted small center">Idle Craft · free forever · no ads · no tracking</p>`;
+    <p class="muted small center">Idle Craft · free forever · no ads · no tracking<br>Icons by Lorc, Delapouite and contributors, game-icons.net (CC BY 3.0)</p>`;
 }
 
 const RENDER = {
@@ -597,7 +597,7 @@ const RENDER = {
 
 function render() {
   dirty = false;
-  view.innerHTML = RENDER[tab]();
+  view.innerHTML = iconify(RENDER[tab]());
   advMount();
   refresh();
 }
@@ -654,9 +654,11 @@ function refresh() {
   worldRefresh();
   view.querySelectorAll('[data-k]').forEach(el => {
     const v = call(K, el.dataset.k);
-    const isHtml = HTML_KEYS.has(el.dataset.k.split(':')[0]);
-    if (isHtml) { if (el.innerHTML !== v) el.innerHTML = v; }
-    else if (el.textContent !== v) el.textContent = v;
+    if (el._v === v) return;
+    el._v = v;
+    // values may contain markup (the queue) or emoji that become icons
+    if (HTML_KEYS.has(el.dataset.k.split(':')[0]) || EMOJI_TEST.test(v)) el.innerHTML = iconify(v);
+    else el.textContent = v;
   });
   view.querySelectorAll('[data-en]').forEach(el => { el.disabled = !call(E, el.dataset.en); });
   view.querySelectorAll('[data-w]').forEach(el => {
@@ -733,7 +735,7 @@ document.addEventListener('click', e => {
 function toast(msg, big) {
   const t = document.createElement('div');
   t.className = 'toast' + (big ? ' big' : '');
-  t.innerHTML = msg;
+  t.innerHTML = iconify(msg);
   const box = $('#toasts');
   box.appendChild(t);
   while (box.children.length > 3) box.firstChild.remove();
@@ -745,7 +747,7 @@ function floatText(el, text) {
   const r = el.getBoundingClientRect();
   const f = document.createElement('div');
   f.className = 'float';
-  f.textContent = text;
+  f.innerHTML = iconify(text);
   f.style.left = (r.left + r.width / 2 + (Math.random() * 30 - 15)) + 'px';
   f.style.top = (r.top + r.height / 3) + 'px';
   document.body.appendChild(f);
@@ -753,7 +755,7 @@ function floatText(el, text) {
 }
 
 function showModal(html) {
-  $('#modal .box').innerHTML = html;
+  $('#modal .box').innerHTML = iconify(html);
   $('#modal').hidden = false;
 }
 function closeModal() { $('#modal').hidden = true; }
@@ -773,6 +775,13 @@ function loop() {
   featureLoop();
   worldLoop();
   if (dirty) render(); else refresh();
+}
+
+// swap the emoji in the static page (header, tabs) for icons
+for (const el of document.querySelectorAll('.brand, .nav button span, .coins, #star')) {
+  for (const node of [...el.childNodes]) if (node.nodeType === 3 && EMOJI_TEST.test(node.textContent)) {
+    const span = document.createElement('span'); span.innerHTML = iconify(node.textContent); node.replaceWith(...span.childNodes);
+  }
 }
 
 load();

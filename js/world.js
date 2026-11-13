@@ -472,7 +472,7 @@ function worldRefresh() {
   const buffs = Object.values(S.buffs).map(b => `${b.icon}${fmtTime(b.t)}`).join(' ');
   const html = `${s.icon}${buffs ? ' · ' + buffs : ''}${S.trader ? ' · 🧳' : ''}`;
   const el = $('#status');
-  if (el.innerHTML !== html) el.innerHTML = html;
+  if (el._v !== html) { el._v = html; el.innerHTML = iconify(html); }
 }
 
 /* ---------- sub-tabs ---------- */

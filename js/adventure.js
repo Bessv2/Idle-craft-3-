@@ -315,6 +315,7 @@ function hitMob(m, dmg) {
   dmg = Math.max(1, Math.round(dmg * (0.9 + Math.random() * 0.2) * (crit ? 2 : 1)));
   m.hp -= dmg;
   m.hurt = W.time + 5;
+  m.flash = W.time;
   floater(m.x, m.y - 0.5, (crit ? '💥' : '') + fmt(dmg), crit ? '#ffb020' : '#fff');
   if (m.hp <= 0) killMob(m);
 }
@@ -327,10 +328,10 @@ function heroDown() {
 function advSkill() {
   if (!W || W.skillCd > 0) return;
   W.skillCd = 6;
+  W.spin = W.time;
   const st = heroStats();
   let hit = 0;
   for (const m of W.mobs) if (!m.deadUntil && Math.hypot(m.x - W.px, m.y - W.py) < 2.3) { hitMob(m, st.atk * 2.2); hit++; }
-  floater(W.px, W.py - 0.8, '🌀', '#fff');
   if (hit) buzz();
 }
 function healItem() { return HEALS.find(([id]) => have(id) >= 1); }
@@ -359,6 +360,8 @@ function advUpdate(dt) {
   if (keysDown.ArrowUp || keysDown.w) dy -= 1;
   if (keysDown.ArrowDown || keysDown.s) dy += 1;
   const len = Math.hypot(dx, dy);
+  W.moving = len > 0.05;
+  if (Math.abs(dx) > 0.1) W.face = dx < 0 ? -1 : 1;
   if (len > 0.05) {
     const sp = 3.6 * Math.min(1, len) / len;
     const hero = { x: W.px, y: W.py };
@@ -400,7 +403,12 @@ function advUpdate(dt) {
   }
   if (S.adv.hp <= 0) heroDown();
   // hero auto-attacks the nearest monster in reach
-  if (nearest && W.atkCd <= 0) { W.atkCd = 0.55; hitMob(nearest, st.atk); }
+  if (nearest && W.atkCd <= 0) {
+    W.atkCd = 0.55;
+    W.slash = { x: nearest.x, y: nearest.y, t: W.time };
+    W.face = nearest.x < W.px ? -1 : 1;
+    hitMob(nearest, st.atk);
+  }
   // rest when nothing has hit you for a while
   if (W.time - W.lastHit > 4 && S.adv.hp < st.hp) S.adv.hp = Math.min(st.hp, S.adv.hp + st.hp * 0.05 * dt);
 
@@ -434,72 +442,153 @@ function advUpdate(dt) {
 }
 
 /* ---------- drawing ---------- */
+// Cheap repeatable noise so every tile keeps the same decoration.
+const tileHash = (x, y) => { let h = (x * 374761393 + y * 668265263) ^ 0x5bd1e995; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = v => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
+}
+function shadow(ctx, x, y, r) {
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.38, 0, 0, 7); ctx.fill();
+}
+
 function advDraw() {
   const c = advCanvas, ctx = advCtx, dpr = window.devicePixelRatio || 1;
   const w = c.clientWidth, h = c.clientHeight;
   if (!w || !h) return;
   if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const T = Math.max(34, Math.min(48, w / 9));
+  const T = Math.max(40, Math.min(56, w / 8));
   const zone = ZONES[W.zi], map = W.map;
-  const camX = W.px * T - w / 2, camY = W.py * T - h / 2;
-  ctx.fillStyle = zone.wallBg;
+  const camX = Math.round(W.px * T - w / 2), camY = Math.round(W.py * T - h / 2);
+  ctx.fillStyle = shade(zone.wallBg, 0.8);
   ctx.fillRect(0, 0, w, h);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const x0 = Math.max(0, Math.floor(camX / T)), x1 = Math.min(MAP_N - 1, Math.ceil((camX + w) / T));
-  const y0 = Math.max(0, Math.floor(camY / T)), y1 = Math.min(MAP_N - 1, Math.ceil((camY + h) / T));
+  // the visible range runs past the map edge so the world never ends in a blank strip
+  const x0 = Math.floor(camX / T), x1 = Math.ceil((camX + w) / T);
+  const y0 = Math.floor(camY / T), y1 = Math.ceil((camY + h) / T);
+  const inMap = (x, y) => x >= 0 && y >= 0 && x < MAP_N && y < MAP_N;
+  const isWall = (x, y) => !inMap(x, y) || map.g[x + y * MAP_N] !== 0;
+
+  // ground, with speckles and a darker lip under walls
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    if (map.g[x + y * MAP_N] === 0) {
-      ctx.fillStyle = (x + y) % 2 ? zone.ground : zone.alt;
-      ctx.fillRect(x * T - camX, y * T - camY, T + 1, T + 1);
+    const sx = x * T - camX, sy = y * T - camY, r = tileHash(x, y);
+    if (isWall(x, y)) {
+      ctx.fillStyle = shade(zone.wallBg, 0.94 + r * 0.06);
+      ctx.fillRect(sx, sy, T + 1, T + 1);
+      continue;
     }
+    ctx.fillStyle = shade(zone.ground, 0.98 + r * 0.04);
+    ctx.fillRect(sx, sy, T + 1, T + 1);
+    ctx.fillStyle = shade(zone.ground, 0.82);
+    for (let k = 0; k < 3; k++) {
+      const a = tileHash(x * 3 + k, y * 7 - k), b = tileHash(x * 5 - k, y * 2 + k);
+      if (a < 0.6) ctx.fillRect(sx + a * 1.5 * T, sy + b * T * 0.9, 3, 6);
+    }
+    if (r > 0.93) { ctx.fillStyle = shade(zone.ground, 1.18); ctx.beginPath(); ctx.arc(sx + T * 0.5, sy + T * 0.5, T * 0.07, 0, 7); ctx.fill(); }
+    if (isWall(x, y - 1)) { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(sx, sy, T + 1, T * 0.22); }
   }
-  ctx.font = `${T * 0.8}px serif`;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    if (map.g[x + y * MAP_N] !== 0) ctx.fillText(zone.walls[map.deco[x + y * MAP_N]], (x + 0.5) * T - camX, (y + 0.5) * T - camY);
+  // walls drawn back to front so tall things overlap the tile above
+  for (let y = y0; y <= y1 + 1; y++) for (let x = x0; x <= x1; x++) {
+    if (!isWall(x, y)) continue;
+    const sx = (x + 0.5) * T - camX, sy = (y + 0.5) * T - camY, r = tileHash(x + 91, y + 17);
+    const deco = inMap(x, y) ? map.deco[x + y * MAP_N] : Math.floor(tileHash(x, y + 5) * zone.walls.length);
+    shadow(ctx, sx, sy + T * 0.36, T * 0.4);
+    drawIcon(ctx, zone.walls[deco], sx + (r - 0.5) * T * 0.14, sy - T * 0.1, T * (0.92 + r * 0.16));
   }
+
   const at = (x, y) => [x * T - camX, y * T - camY];
-  ctx.font = `${T * 0.6}px serif`;
-  for (const n of map.nodes) if (n.t <= W.time) { const [sx, sy] = at(n.x, n.y); ctx.fillText(zone.nodes[n.k][0], sx, sy); }
-  for (const ch of map.chests) if (ch.t <= W.time) { const [sx, sy] = at(ch.x, ch.y); ctx.fillText('🎁', sx, sy); }
-  { const [sx, sy] = at(map.spawn.x, map.spawn.y); ctx.fillText('⛺', sx, sy); }
-  for (const m of W.mobs) {
-    if (m.deadUntil) continue;
+  const pulse = 1 + Math.sin(W.time * 4) * 0.05;
+  for (const n of map.nodes) if (n.t <= W.time) {
+    const [sx, sy] = at(n.x, n.y);
+    shadow(ctx, sx, sy + T * 0.28, T * 0.26);
+    drawIcon(ctx, zone.nodes[n.k][0], sx, sy, T * 0.6 * pulse);
+  }
+  for (const ch of map.chests) if (ch.t <= W.time) {
+    const [sx, sy] = at(ch.x, ch.y);
+    ctx.fillStyle = 'rgba(255,216,74,.22)'; ctx.beginPath(); ctx.arc(sx, sy, T * 0.5 * pulse, 0, 7); ctx.fill();
+    shadow(ctx, sx, sy + T * 0.3, T * 0.3);
+    drawIcon(ctx, '🎁', sx, sy, T * 0.7);
+  }
+  { const [sx, sy] = at(map.spawn.x, map.spawn.y); shadow(ctx, sx, sy + T * 0.36, T * 0.45); drawIcon(ctx, '⛺', sx, sy - T * 0.05, T * 0.95); }
+
+  // monsters, sorted so lower ones draw on top
+  const alive = W.mobs.filter(m => !m.deadUntil).sort((a, b) => a.y - b.y);
+  for (const m of alive) {
     const [sx, sy] = at(m.x, m.y);
-    ctx.font = `${T * (m.boss ? 1.5 : 0.8)}px serif`;
-    ctx.fillText(m.i, sx, sy);
+    const size = T * (m.boss ? 1.7 : 0.82);
+    const bob = Math.sin(W.time * 6 + m.home.x * 3) * T * 0.03;
+    const hitT = W.time - (m.flash || -9);
+    if (m.boss) {
+      ctx.fillStyle = 'rgba(192,38,211,.18)';
+      ctx.beginPath(); ctx.arc(sx, sy, size * 0.62 * pulse, 0, 7); ctx.fill();
+    }
+    shadow(ctx, sx, sy + size * 0.42, size * 0.36);
+    const pop = hitT < 0.12 ? 1.18 : 1;
+    drawIcon(ctx, m.i, sx, sy - size * 0.05 + bob, size * pop, hitT < 0.1 ? '#ffffff' : undefined);
     if (m.hp < m.max || m.boss) {
-      const bw = T * (m.boss ? 1.6 : 0.9), by = sy - T * (m.boss ? 0.95 : 0.6);
-      ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(sx - bw / 2, by, bw, 5);
+      const bw = T * (m.boss ? 1.7 : 0.9), by = sy - size * 0.66;
+      ctx.fillStyle = '#17110c'; ctx.fillRect(sx - bw / 2 - 2, by - 2, bw + 4, 9);
       ctx.fillStyle = m.boss ? '#c026d3' : '#e5484d'; ctx.fillRect(sx - bw / 2, by, bw * Math.max(0, m.hp / m.max), 5);
+      ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(sx - bw / 2, by, bw * Math.max(0, m.hp / m.max), 2);
+      if (m.boss) drawLabel(ctx, m.n, sx, by - 12, T * 0.3, '#f6d0ff');
     }
   }
-  ctx.font = `${T * 0.85}px serif`;
-  ctx.fillText('🧝', w / 2, h / 2);
-  ctx.font = `bold ${T * 0.36}px system-ui, sans-serif`;
-  ctx.lineWidth = 3;
+
+  // hero
+  {
+    const hx = w / 2, hy = h / 2;
+    const bob = W.moving ? Math.abs(Math.sin(W.time * 12)) * T * 0.07 : Math.sin(W.time * 3) * T * 0.015;
+    shadow(ctx, hx, hy + T * 0.4, T * 0.32);
+    ctx.save();
+    ctx.translate(hx, hy - T * 0.05 - bob);
+    if (W.face < 0) ctx.scale(-1, 1);
+    drawIcon(ctx, '🧝', 0, 0, T * 0.95, W.time - W.lastHit < 0.12 ? '#ff8a80' : undefined);
+    ctx.restore();
+  }
+  // attack slash
+  if (W.slash && W.time - W.slash.t < 0.16) {
+    const k = (W.time - W.slash.t) / 0.16;
+    const [sx, sy] = at(W.slash.x, W.slash.y);
+    const ang = Math.atan2(sy - h / 2, sx - w / 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 - k * 0.9})`;
+    ctx.lineWidth = T * 0.14 * (1 - k * 0.5);
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(w / 2, h / 2, T * 0.85, ang - 0.9 + k * 0.6, ang + 0.2 + k * 0.9); ctx.stroke();
+  }
+  if (W.spin && W.time - W.spin < 0.35) {
+    const k = (W.time - W.spin) / 0.35;
+    ctx.strokeStyle = `rgba(127,208,240,${0.8 - k * 0.8})`;
+    ctx.lineWidth = T * 0.2 * (1 - k);
+    ctx.beginPath(); ctx.arc(w / 2, h / 2, T * (0.6 + k * 1.8), 0, 7); ctx.stroke();
+  }
+
   for (const f of W.floaters) {
     const [sx, sy] = at(f.x, f.y - f.t * 0.9);
-    ctx.globalAlpha = 1 - f.t;
-    ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(f.text, sx, sy);
-    ctx.fillStyle = f.color; ctx.fillText(f.text, sx, sy);
+    ctx.globalAlpha = Math.min(1, 1.6 - f.t * 1.6);
+    drawLabel(ctx, f.text, sx, sy, T * 0.36, f.color);
   }
   ctx.globalAlpha = 1;
+
+  // vignette for depth
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.38)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+
   // pointer toward the boss lair when it is off screen
   const boss = W.mobs[W.mobs.length - 1];
   const [bx, by] = at(map.lair.x, map.lair.y);
   if (!boss.deadUntil && (bx < 0 || bx > w || by < 0 || by > h)) {
-    const ang = Math.atan2(by - h / 2, bx - w / 2), r = Math.min(w, h) / 2 - 26;
-    ctx.font = `${T * 0.5}px serif`;
-    ctx.globalAlpha = 0.85;
-    ctx.fillText('☠️', w / 2 + Math.cos(ang) * r, h / 2 + Math.sin(ang) * r);
-    ctx.globalAlpha = 1;
+    const ang = Math.atan2(by - h / 2, bx - w / 2), r = Math.min(w, h) / 2 - 30;
+    drawIcon(ctx, '☠', w / 2 + Math.cos(ang) * r, h / 2 + Math.sin(ang) * r, T * 0.55 * pulse);
   }
   if (joy) {
-    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 42, 0, 7); ctx.stroke();
-    ctx.beginPath(); ctx.arc(joy.ox + joy.dx * 42, joy.oy + joy.dy * 42, 18, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 46, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(joy.ox + joy.dx * 46, joy.oy + joy.dy * 46, 20, 0, 7); ctx.fill();
   }
 }
 
