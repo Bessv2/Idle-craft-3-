@@ -10,12 +10,12 @@
 const RELICS = [
   { id: 'idol',      name: 'Stone Idol',      icon: '🗿', desc: 'Workers gather 10% faster',     eff: { worker: 1.1 } },
   { id: 'fossil',    name: 'Fossil',          icon: '🦴', desc: 'Workers gather 10% faster',     eff: { worker: 1.1 } },
-  { id: 'lamp',      name: 'Old Lamp',        icon: '🪔', desc: '+3 per tap',                    eff: { tap: 3 } },
+  { id: 'lamp',      name: 'Wishing Gourd',        icon: '🪔', desc: '+3 per tap',                    eff: { tap: 3 } },
   { id: 'hourglass', name: 'Hourglass',       icon: '⏳', desc: 'Crafting is 10% faster',        eff: { speed: 0.9 } },
   { id: 'shell',     name: 'Singing Shell',   icon: '🐚', desc: 'Crafting is 10% faster',        eff: { speed: 0.9 } },
-  { id: 'horn',      name: 'Hunting Horn',    icon: '📯', desc: 'Expeditions are 20% faster',    eff: { exp: 0.8 } },
+  { id: 'horn',      name: 'Pan Flute',    icon: '📯', desc: 'Expeditions are 20% faster',    eff: { exp: 0.8 } },
   { id: 'amphora',   name: 'Ancient Amphora', icon: '🏺', desc: 'Everything sells for 10% more', eff: { price: 1.1 } },
-  { id: 'mask',      name: 'Ritual Mask',     icon: '🎭', desc: 'Everything sells for 10% more', eff: { price: 1.1 } },
+  { id: 'mask',      name: 'Ancient Helm',     icon: '🎭', desc: 'Everything sells for 10% more', eff: { price: 1.1 } },
   { id: 'scroll',    name: 'Lost Scroll',     icon: '📜', desc: 'Mastery grows 50% faster',      eff: { mastery: 1.5 } },
   { id: 'key',       name: 'Golden Key',      icon: '🗝️', desc: 'Orders pay 25% more',           eff: { order: 1.25 } },
 ];

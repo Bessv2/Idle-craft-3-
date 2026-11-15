@@ -9,17 +9,17 @@
 /* ---------- extra content merged into the base data ---------- */
 Object.assign(ITEMS, {
   carrot:    { name: 'Carrot',    icon: '🥕', kind: 'raw', value: 3 },
-  tomato:    { name: 'Tomato',    icon: '🍅', kind: 'raw', value: 5 },
-  pumpkin:   { name: 'Pumpkin',   icon: '🎃', kind: 'raw', value: 12 },
+  tomato:    { name: 'Pepper',    icon: '🍅', kind: 'raw', value: 5 },
+  pumpkin:   { name: 'Melon',   icon: '🎃', kind: 'raw', value: 12 },
   grapes:    { name: 'Grapes',    icon: '🍇', kind: 'raw', value: 14 },
   sunflower: { name: 'Sunflower', icon: '🌻', kind: 'raw', value: 40 },
   egg:       { name: 'Egg',       icon: '🥚', kind: 'raw', value: 6 },
   honey:     { name: 'Honey',     icon: '🍯', kind: 'raw', value: 15 },
   salad:     { name: 'Salad',        icon: '🥗', kind: 'good' },
   stew:      { name: 'Stew',         icon: '🍲', kind: 'good' },
-  soup:      { name: 'Pumpkin Soup', icon: '🥣', kind: 'good' },
+  soup:      { name: 'Melon Soup', icon: '🥣', kind: 'good' },
   wine:      { name: 'Wine',         icon: '🍷', kind: 'good' },
-  cake:      { name: 'Cake',         icon: '🎂', kind: 'good' },
+  cake:      { name: 'Cheesecake',         icon: '🎂', kind: 'good' },
   feast:     { name: 'Feast',        icon: '🍱', kind: 'good' },
   bouquet:   { name: 'Bouquet',      icon: '💐', kind: 'good' },
   kitchen:   { name: 'Kitchen',      icon: '🍳', kind: 'station' },
@@ -74,8 +74,8 @@ const PETS = [
   { id: 'cat',  name: 'Cat',      icon: '🐈', cost: 300,   food: 'bread',     per: 3,  desc: l => `+${10 * l}% tap power` },
   { id: 'hen',  name: 'Hen',      icon: '🐔', cost: 800,   food: 'wheat',     per: 15, desc: l => `Lays ${l} egg${l > 1 ? 's' : ''} a minute` },
   { id: 'dog',  name: 'Dog',      icon: '🐕', cost: 2500,  food: 'pie',       per: 3,  desc: l => `Expeditions ${5 * l}% faster` },
-  { id: 'hog',  name: 'Hedgehog', icon: '🦔', cost: 5000,  food: 'carrot',    per: 15, desc: l => `+${10 * l}% mine power` },
-  { id: 'bees', name: 'Beehive',  icon: '🐝', cost: 10000, food: 'sunflower', per: 2,  desc: l => `Makes ${l} honey every 2 minutes` },
+  { id: 'hog',  name: 'Hamster',  icon: '🦔', cost: 5000,  food: 'carrot',    per: 15, desc: l => `+${10 * l}% mine power` },
+  { id: 'bees', name: 'Butterflies', icon: '🐝', cost: 10000, food: 'sunflower', per: 2,  desc: l => `Makes ${l} honey every 2 minutes` },
   { id: 'owl',  name: 'Owl',      icon: '🦉', cost: 25000, food: 'jam',       per: 3,  desc: l => `+${10 * l}% insight` },
 ];
 const PET_MAX = 10;
@@ -476,20 +476,23 @@ function worldRefresh() {
 }
 
 /* ---------- sub-tabs ---------- */
-const subTab = { gather: 'wild', town: 'orders', upgrades: 'coins' };
+const subTab = { gather: 'wild', market: 'sell', town: 'explore', upgrades: 'coins' };
 const SUBS = {
   gather: [
     ['wild', '🌲 Wild', () => true, () => renderGather()],
     ['farm', '🥕 Farm', () => owns('stone_hoe'), renderFarm],
     ['mine', '⛏️ Mine', () => owns('stone_pickaxe'), renderMine],
   ],
-  town: [
+  market: [
+    ['sell', '🪙 Sell', () => true, () => renderMarket()],
     ['orders', '📦 Orders', () => true, () => renderOrders()],
+    ['board', '📌 Jobs', () => true, renderBoard],
+  ],
+  town: [
     ['explore', '🧭 Explore', () => true, () => renderExpeditions()],
     ['tavern', '🍲 Tavern', () => true, renderTavern],
     ['pets', '🐾 Pets', () => true, renderPets],
     ['museum', '🏛️ Museum', () => true, renderMuseum],
-    ['board', '📌 Board', () => true, renderBoard],
   ],
   upgrades: [
     ['coins', '🪙 Upgrades', () => true, () => renderUpgrades()],
@@ -502,7 +505,7 @@ function renderSubs(tabId) {
   if (!list.some(s => s[0] === subTab[tabId])) subTab[tabId] = list[0][0];
   const chips = list.length < 2 ? '' : `<div class="chips">${list.map(s =>
     `<button class="chip ${s[0] === subTab[tabId] ? 'on' : ''}" data-a="sub" data-id="${tabId}:${s[0]}">${s[1]}${subBadge(s[0])}</button>`).join('')}</div>`;
-  return chips + list.find(s => s[0] === subTab[tabId])[3]();
+  return screenHead() + chips + list.find(s => s[0] === subTab[tabId])[3]();
 }
 // A dot on a chip when something there is waiting for you.
 function subBadge(sub) {
@@ -668,7 +671,10 @@ function renderTrader() {
 }
 
 function renderOptions() {
-  return `<button class="btn" data-a="haptics">Vibration: ${S.opt.haptics ? 'on' : 'off'}</button>`;
+  return `<button class="btn" data-a="audio" data-id="music">Music: ${audioOn('music') ? 'on' : 'off'}</button>
+    <button class="btn" data-a="audio" data-id="sound">Sounds: ${audioOn('sound') ? 'on' : 'off'}</button>
+    <button class="btn" data-a="haptics">Vibration: ${S.opt.haptics ? 'on' : 'off'}</button>
+    <button class="btn" data-a="replay-tutorial">Replay tutorial</button>`;
 }
 
 /* ---------- bindings ---------- */
@@ -736,8 +742,9 @@ function worldAction(a, id, n, el) {
     case 'quest': claimQuest(+n); break;
     case 'research': buyResearch(id); break;
     case 'trade': trade(+n); break;
-    case 'star': catchStar(); break;
+    case 'star': catchStar(); sfx('star'); break;
     case 'haptics': S.opt.haptics = !S.opt.haptics; dirty = true; break;
+    case 'audio': toggleAudio(id); break;
     case 'status': {
       const s = SEASONS[S.season.i];
       const buffs = Object.entries(S.buffs);
@@ -750,7 +757,7 @@ function worldAction(a, id, n, el) {
         <button class="btn primary wide" data-a="close-modal">OK</button>`);
       break;
     }
-    default: return advAction(a, id, n);
+    default: return advAction(a, id, n) || tutorialAction(a);
   }
   return true;
 }

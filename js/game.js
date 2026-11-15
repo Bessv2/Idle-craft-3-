@@ -115,6 +115,7 @@ function tapNode(id, el) {
   S.stats.taps++;
   questProgress('tap', 1);
   buzz();
+  sfx('tap');
   floatText(el, '+' + fmt(n) + tapLabel);
 }
 
@@ -123,6 +124,7 @@ function hire(id) {
   if (S.coins < c) return;
   S.coins -= c;
   S.workers[id] = (S.workers[id] || 0) + 1;
+  sfx('buy');
   dirty = true;
 }
 
@@ -132,6 +134,7 @@ function buyUpgrade(id) {
   if (S.coins < c) return;
   S.coins -= c;
   S.upg[id]++;
+  sfx('buy');
   dirty = true;
 }
 
@@ -140,6 +143,7 @@ function upgradeStation(id) {
   if (S.coins < c) return;
   S.coins -= c;
   stationState(id).lvl++;
+  sfx('buy');
   toast(`${ITEMS[id].icon} ${ITEMS[id].name} is now level ${stationState(id).lvl}`);
   dirty = true;
 }
@@ -183,6 +187,7 @@ function sell(id, n) {
   S.run.earned += gain;
   questProgress('earn', gain);
   S.stats.sold += n;
+  if (!simulatingOffline) sfx('coin');
 }
 
 const KEEP_STEPS = [null, 0, 10, 50, 100, 500, 1000];
@@ -224,6 +229,7 @@ function finishJob(job) {
   if (unique) {
     const it = ITEMS[recipeOut(r)];
     toast(`${it.icon} Built ${it.name}!`, true);
+    sfx('victory');
     dirty = true;
   }
 }
@@ -281,6 +287,7 @@ let pendingDiscoveries = [];
 let simulatingOffline = false;
 function onDiscover(id) {
   dirty = true;
+  sfx('discover');
   gainInsight(3);
   if (simulatingOffline) return;
   const it = ITEMS[id];
@@ -462,29 +469,28 @@ function renderCraft() {
       const uniq = isUnique(out);
       return `
       <div class="card recipe ${uniq ? 'unique' : ''}">
-        <div class="row between">
-          <div class="rname"><span class="big2">${it.icon}</span>
-            <div><b>${it.name}${r.out[out] > 1 ? ' ×' + r.out[out] : ''}</b>
-              <div class="muted small">${uniq ? (it.kind === 'tool' ? 'Tool · unlocks a new gathering spot' : 'Station · unlocks new recipes')
-                : `🪙${fmt(sellPrice(out))} each`} · ⏱ ${craftTime(r).toFixed(1)}s</div>
+        <div class="rrow">
+          <span class="big2 slotc">${it.icon}${uniq ? '' : `<em class="badge" data-k="n:${out}"></em>`}</span>
+          <div class="rinfo">
+            <div class="rtitle"><b>${it.name}${r.out[out] > 1 ? ' ×' + r.out[out] : ''}</b>
+              ${uniq ? '' : `<span class="mast" data-k="mast:${r.id}" title="Mastery: faster crafting and a chance of double output"></span>`}</div>
+            <div class="inputs">
+              ${Object.entries(r.in).map(([i, n]) => `
+                <span class="need" data-c="need:${i}:${n}">${ITEMS[i].icon}<span data-k="n:${i}"></span>/${n}</span>`).join('')}
             </div>
+            <div class="muted small">${uniq ? (it.kind === 'tool' ? 'Tool · unlocks a gathering spot' : 'Station · unlocks new recipes')
+              : `🪙${fmt(sellPrice(out))} each`} · ⏱ ${craftTime(r).toFixed(1)}s</div>
           </div>
-          <div class="ownbox"><span class="own" data-k="n:${out}"></span>
-            ${uniq ? '' : `<span class="mast" data-k="mast:${r.id}" title="Mastery: faster crafting and a chance of double output"></span>`}</div>
+          <button class="btn primary craftbtn" data-a="craft" data-id="${r.id}" data-n="1" data-en="craft:${r.id}:1">Craft</button>
         </div>
-        <div class="inputs">
-          ${Object.entries(r.in).map(([i, n]) => `
-            <span class="need" data-c="need:${i}:${n}">${ITEMS[i].icon} <span data-k="n:${i}"></span>/${n}</span>`).join('')}
-        </div>
-        <div class="row actions">
-          <button class="btn" data-a="craft" data-id="${r.id}" data-n="1" data-en="craft:${r.id}:1">Craft</button>
-          ${uniq ? '' : `
-          <button class="btn" data-a="craft" data-id="${r.id}" data-n="10" data-en="craft:${r.id}:1">×10</button>
-          <button class="btn" data-a="craft" data-id="${r.id}" data-n="max" data-en="craft:${r.id}:1">Max</button>
+        ${uniq ? '' : `
+        <div class="minirow">
+          <button class="btn small" data-a="craft" data-id="${r.id}" data-n="10" data-en="craft:${r.id}:1">×10</button>
+          <button class="btn small" data-a="craft" data-id="${r.id}" data-n="max" data-en="craft:${r.id}:1">Max</button>
           ${st.lvl >= 1
-            ? `<button class="btn toggle ${st.auto[r.id] ? 'on' : ''}" data-a="auto" data-id="${r.id}">🔁 Auto</button>`
-            : `<button class="btn toggle" disabled title="Upgrade station to unlock auto-craft">🔁 🔒</button>`}`}
-        </div>
+            ? `<button class="btn small toggle ${st.auto[r.id] ? 'on' : ''}" data-a="auto" data-id="${r.id}">🔁 Auto</button>`
+            : `<button class="btn small toggle" disabled title="Upgrade this station to unlock auto-craft">🔁 Auto 🔒</button>`}
+        </div>`}
       </div>`;
     }).join('')}
     ${hidden ? `<p class="muted center">❓ ${hidden} more recipe${hidden > 1 ? 's' : ''} to discover here.</p>` : ''}
@@ -495,7 +501,7 @@ function renderMarket() {
   const filters = [['all', 'All'], ['raw', 'Raw'], ['mat', 'Materials'], ['good', 'Goods']];
   const list = Object.keys(ITEMS).filter(id => S.seen[id] && !isUnique(id) &&
     (marketFilter === 'all' || ITEMS[id].kind === marketFilter));
-  list.sort((a, b) => (isHot(b) - isHot(a)) || VALUE[a] - VALUE[b]);
+  list.sort((a, b) => (isHot(b) - isHot(a)) || ((have(b) >= 1) - (have(a) >= 1)) || VALUE[a] - VALUE[b]);
   return `
     ${renderTrader()}
     <div class="chips">
@@ -507,27 +513,40 @@ function renderMarket() {
       <button class="btn primary small" data-a="sellgoods">Sell goods</button>
     </div>
     ${list.length ? '' : '<p class="muted center">Nothing here yet.</p>'}
-    ${list.map(id => {
-      const it = ITEMS[id];
-      const as = S.autosell[id];
-      return `
-      <div class="card mrow">
-        <div class="rname"><span class="big2">${it.icon}</span>
-          <div><b>${it.name}</b> <span class="muted small">×<span data-k="n:${id}"></span></span>
-            <div class="muted small">🪙${fmt(sellPrice(id), 1)} each${isHot(id) ? ' <span class="hot">⭐ in demand</span>' : ''}</div></div>
-        </div>
-        <div class="row actions">
-          <button class="btn small" data-a="sell" data-id="${id}" data-n="1" data-en="sell:${id}">1</button>
-          <button class="btn small" data-a="sell" data-id="${id}" data-n="10" data-en="sell:${id}">10</button>
-          <button class="btn small" data-a="sell" data-id="${id}" data-n="all" data-en="sell:${id}">All</button>
-          <button class="btn small toggle ${as !== undefined ? 'on' : ''}" data-a="autosell" data-id="${id}"
-            title="Automatically sell everything above the amount to keep">
-            ${as === undefined ? 'Auto-sell' : `Auto · keep ${as}`}</button>
-        </div>
-      </div>`;
-    }).join('')}`;
+    <div class="inv">
+      ${list.map(id => `
+        <button class="mitem ${have(id) >= 1 ? 'has' : 'empty'} ${isHot(id) ? 'hotitem' : ''} ${S.autosell[id] !== undefined ? 'auto' : ''}" data-a="mitem" data-id="${id}" title="${esc(ITEMS[id].name)}">
+          ${ITEMS[id].icon}<em class="badge" data-k="n:${id}"></em>
+          <small>🪙${fmt(sellPrice(id), sellPrice(id) < 10 ? 1 : 0)}</small>
+        </button>`).join('')}
+    </div>
+    <p class="muted small center">Tap an item to sell it. Green items are on auto-sell.</p>`;
 }
 
+// The sell sheet for one market item.
+function openSellSheet(id) {
+  const it = ITEMS[id];
+  const as = S.autosell[id];
+  showModal(`
+    <div class="sheethead"><span class="big2">${it.icon}</span>
+      <div><h2>${it.name}</h2><div class="muted small">You have <b data-k="n:${id}">${fmt(have(id))}</b> · 🪙${fmt(sellPrice(id), 1)} each${isHot(id) ? ' · <span class="hot">in demand!</span>' : ''}</div></div></div>
+    <div class="sellgrid">
+      <button class="btn" data-a="sell" data-id="${id}" data-n="1" data-en="sell:${id}">Sell 1</button>
+      <button class="btn" data-a="sell" data-id="${id}" data-n="10" data-en="sell:${id}">Sell 10</button>
+      <button class="btn primary" data-a="sell" data-id="${id}" data-n="all" data-en="sell:${id}">Sell all</button>
+    </div>
+    <div class="card row between" style="margin-top:12px">
+      <div><b>Auto-sell</b><div class="muted small">${as === undefined ? 'Off' : `Keeps ${as}, sells the rest automatically`}</div></div>
+      <button class="btn small toggle ${as !== undefined ? 'on' : ''}" data-a="autosell" data-id="${id}" data-n="sheet">${as === undefined ? 'Turn on' : `Keep ${as} ▸`}</button>
+    </div>
+    <button class="btn wide" data-a="close-modal">Close</button>`, true);
+  refreshModal();
+}
+function refreshModal() {
+  const box = $('#modal .box');
+  box.querySelectorAll('[data-en]').forEach(el => { el.disabled = !call(E, el.dataset.en); });
+  box.querySelectorAll('[data-k]').forEach(el => { el.textContent = call(K, el.dataset.k); });
+}
 function renderUpgrades() {
   return `
     <h3>Upgrades</h3>
@@ -587,18 +606,21 @@ function renderStats() {
         <button class="btn danger" data-a="reset">Reset</button>
       </div>
     </div>
-    <p class="muted small center">Idle Craft · free forever · no ads · no tracking<br>Icons by Lorc, Delapouite and contributors, game-icons.net (CC BY 3.0)</p>`;
+    <p class="muted small center">Idle Craft · free forever · no ads · no tracking<br>Pixel art, music and sounds: Ninja Adventure by Pixel-boy &amp; AAA (CC0) · 496 RPG icons by 7Soul (CC0)
+      · DungeonTileset II by 0x72 (CC0) · UI icons by Lorc, Delapouite and contributors, game-icons.net (CC BY 3.0)</p>`;
 }
 
 const RENDER = {
-  gather: () => renderSubs('gather'), town: () => renderSubs('town'), upgrades: () => renderSubs('upgrades'),
-  craft: renderCraft, market: renderMarket, stats: renderStats, hero: () => renderSubs('hero'),
+  gather: () => renderSubs('gather'), market: () => renderSubs('market'), town: () => renderSubs('town'),
+  upgrades: () => renderSubs('upgrades'), hero: () => renderSubs('hero'),
+  craft: () => screenHead() + renderCraft(), book: () => screenHead() + renderStats(),
 };
 
 function render() {
   dirty = false;
   view.innerHTML = iconify(RENDER[tab]());
   advMount();
+  syncMusic();
   refresh();
 }
 
@@ -649,8 +671,21 @@ function call(map, key) {
   return map[name](...args);
 }
 
+// A dot on a bottom tab when something there needs you.
+const NAV_BADGE = {
+  gather: () => S.farm.plots.some(plotReady),
+  market: () => S.orders.some(o => o.item && have(o.item) >= o.n) || S.quests.some(q => q.prog >= q.goal) || !!S.trader,
+  town: () => !!(S.exp && S.exp.ready),
+  hero: () => talentPointsFree() > 0,
+  upgrades: () => UPGRADES.some(u => S.coins >= upgCost(u)),
+};
 function refresh() {
   $('#coins').textContent = fmt(S.coins);
+  document.querySelectorAll('.nav button').forEach(b => {
+    const f = NAV_BADGE[b.dataset.tab];
+    b.classList.toggle('badge-on', !!(f && f()));
+  });
+  if (!$('#modal').hidden) refreshModal();
   worldRefresh();
   view.querySelectorAll('[data-k]').forEach(el => {
     const v = call(K, el.dataset.k);
@@ -678,9 +713,12 @@ function refresh() {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a], .nav button');
   if (!b) return;
-  if (b.dataset.tab) return setTab(b.dataset.tab);
+  if (b.dataset.tab) { sfx('click'); setTab(b.dataset.tab); render(); return; }
   const { a, id, n } = b.dataset;
+  if (a !== 'tap' && a !== 'skill' && a !== 'dig' && b.tagName === 'BUTTON') sfx('click');
   switch (a) {
+    case 'book': setTab('book'); break;
+    case 'mitem': openSellSheet(id); break;
     case 'tap': tapNode(id, b); break;
     case 'hire': hire(id); break;
     case 'upg': buyUpgrade(id); break;
@@ -693,7 +731,7 @@ document.addEventListener('click', e => {
     case 'sellgoods':
       for (const k of Object.keys(ITEMS)) if (ITEMS[k].kind === 'good') sell(k, Infinity);
       break;
-    case 'autosell': cycleAutosell(id); break;
+    case 'autosell': cycleAutosell(id); if (n === 'sheet') openSellSheet(id); break;
     case 'mfilter': marketFilter = id; dirty = true; break;
     case 'export': {
       const code = exportSave();
@@ -754,8 +792,9 @@ function floatText(el, text) {
   setTimeout(() => f.remove(), 800);
 }
 
-function showModal(html) {
+function showModal(html, sheet) {
   $('#modal .box').innerHTML = iconify(html);
+  $('#modal').classList.toggle('sheet', !!sheet);
   $('#modal').hidden = false;
 }
 function closeModal() { $('#modal').hidden = true; }
@@ -774,11 +813,12 @@ function loop() {
   }
   featureLoop();
   worldLoop();
+  tutorialTick();
   if (dirty) render(); else refresh();
 }
 
 // swap the emoji in the static page (header, tabs) for icons
-for (const el of document.querySelectorAll('.brand, .nav button span, .coins, #star')) {
+for (const el of document.querySelectorAll('.brand, .nav button span, .coins, #star, #bookbtn, #pointer')) {
   for (const node of [...el.childNodes]) if (node.nodeType === 3 && EMOJI_TEST.test(node.textContent)) {
     const span = document.createElement('span'); span.innerHTML = iconify(node.textContent); node.replaceWith(...span.childNodes);
   }

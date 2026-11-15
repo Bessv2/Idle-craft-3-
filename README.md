@@ -35,7 +35,11 @@ everything until you can build a ship.
   and they drop coins, materials and gear in five rarities. Each zone has a boss that opens the next zone.
   Reforge your crafted swords, shields and rings into gear, upgrade it with essence, and raise the threat
   level once every boss is beaten.
-- **Book**: your collection, achievements (each adds +1% sell prices), stats, and save export/import.
+- **Tutorial**: Bram the guide walks you through the first loop, explains each screen the first time
+  you open it, and pops in when something new unlocks. Every screen has a **?** button.
+- **Hero depth**: six heroes to choose from, gear with bonus stats, a talent tree, three skills
+  (Whirlwind, Dash, War Cry), rare elite monsters and a minimap.
+- **Book** (top-right button): your collection, achievements (each adds +1% sell prices), stats, and save export/import.
 
 Progress saves on your device and keeps running while you're away (up to 12 hours).
 
@@ -67,11 +71,15 @@ same signature. A Play Store release would need its own private key instead.
 
 ## Art and credits
 
-- Icons by Lorc, Delapouite and contributors from [game-icons.net](https://game-icons.net), licensed CC BY 3.0.
-- Fonts: Lilita One and Nunito, SIL Open Font License.
+- Pixel art, music and sound effects: [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by Pixel-boy & AAA (CC0).
+- Item icons: [496 pixel art icons for RPG](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg) by 7Soul (CC0).
+- Dungeon tiles: [DungeonTileset II](https://0x72.itch.io/dungeontileset-ii) by 0x72 (CC0).
+- UI icons: Lorc, Delapouite and contributors from [game-icons.net](https://game-icons.net) (CC BY 3.0).
+- Fonts: Lilita One and Nunito (SIL Open Font License).
 
-The game's text uses emoji as shorthand; `js/gfx.js` swaps each one for a drawn icon when the page renders.
-To change an icon or its colour, edit the table in `scripts/build-icons.js` and run `node scripts/build-icons.js`.
+The game's text uses emoji as shorthand; `js/gfx.js` swaps each one for a pixel sprite or icon when the page renders.
+The pixel art is packed into `assets/sprites.png` by `scripts/build-atlas.py`; the source packs are not stored in
+the repo, and the script's header says where to download them. Vector UI icons come from `scripts/build-icons.js`.
 
 ## Adding content
 

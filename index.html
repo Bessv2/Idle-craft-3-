@@ -15,8 +15,11 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand">⚒️ Idle Craft <button id="status" data-a="status" aria-label="Season and boosts"></button></div>
-    <div class="coins">🪙 <span id="coins">0</span></div>
+    <div class="brand">⚒️ <span class="brand-name">Idle Craft</span> <button id="status" data-a="status" aria-label="Season and boosts"></button></div>
+    <div class="top-right">
+      <div class="coins">🪙 <span id="coins">0</span></div>
+      <button id="bookbtn" class="iconbtn" data-a="book" aria-label="Book and settings">📖</button>
+    </div>
   </header>
 
   <main id="view"></main>
@@ -28,19 +31,23 @@
     <button data-tab="town"><span>🏘️</span>Town</button>
     <button data-tab="hero"><span>⚔️</span>Hero</button>
     <button data-tab="upgrades"><span>⬆️</span>Upgrade</button>
-    <button data-tab="stats"><span>📖</span>Book</button>
   </nav>
 
   <button id="star" data-a="star" hidden aria-label="Catch the shooting star">🌠</button>
   <div id="toasts"></div>
   <div id="modal" hidden><div class="box"></div></div>
+  <div id="guide" hidden></div>
+  <div id="pointer" hidden aria-hidden="true">👇</div>
 
   <script src="js/icons.js"></script>
+  <script src="js/sprites.js"></script>
   <script src="js/gfx.js"></script>
   <script src="js/data.js"></script>
   <script src="js/features.js"></script>
   <script src="js/world.js"></script>
   <script src="js/adventure.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/tutorial.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

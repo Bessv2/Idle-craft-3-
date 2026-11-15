@@ -6,7 +6,12 @@
    Loaded after icons.js and before everything else.
    ============================================================ */
 
-const EMOJI_KEYS = Object.keys(EMOJI_ICON).sort((a, b) => b.length - a.length);
+// Pixel-art sprites win over vector icons for the same emoji.
+const EMOJI_KEYS = [...new Set([...Object.keys(PX_EMOJI), ...Object.keys(EMOJI_ICON)])].sort((a, b) => b.length - a.length);
+const ATLAS_IMG = new Image();
+ATLAS_IMG.src = 'assets/sprites.png';
+document.documentElement.style.setProperty('--aw', ATLAS.w);
+document.documentElement.style.setProperty('--ah', ATLAS.h);
 const EMOJI_SRC = '(' + EMOJI_KEYS.map(k => k.replace(/️/g, '')).join('|') + ')\\uFE0F?';
 const EMOJI_RE = new RegExp(EMOJI_SRC, 'g');
 const EMOJI_TEST = new RegExp(EMOJI_SRC);
@@ -18,7 +23,13 @@ const EMOJI_TEST = new RegExp(EMOJI_SRC);
   document.body.insertAdjacentHTML('afterbegin', `<svg id="gi-sprites" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">${symbols}</svg>`);
 })();
 
+// A pixel sprite from the atlas, sized by the --s custom property (see style.css).
+function pxTag(name, cls = '') {
+  const r = SPR[name];
+  return `<i class="px ${cls}" style="--x:${r[0]};--y:${r[1]}" aria-hidden="true"></i>`;
+}
 function iconTag(emoji) {
+  if (PX_EMOJI[emoji]) return pxTag(PX_EMOJI[emoji]);
   const [name, color] = EMOJI_ICON[emoji];
   return `<svg class="gi" viewBox="0 0 512 512" style="color:${color}" aria-hidden="true"><use href="#gi-${name}"/></svg>`;
 }
@@ -67,19 +78,35 @@ function iconSprite(emoji, px, color) {
   spriteCache.set(key, c);
   return c;
 }
+// Draw a named atlas sprite (or one frame of it) centred on x,y.
+function drawSprite(ctx, name, x, y, scale, sx = 0, sy = 0, sw, sh, flip) {
+  const r = SPR[name];
+  if (!r || !ATLAS_IMG.complete) return;
+  sw = sw || r[2]; sh = sh || r[3];
+  const w = sw * scale, h = sh * scale;
+  ctx.imageSmoothingEnabled = false;
+  if (flip) {
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(-1, 1);
+    ctx.drawImage(ATLAS_IMG, r[0] + sx, r[1] + sy, sw, sh, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  } else ctx.drawImage(ATLAS_IMG, r[0] + sx, r[1] + sy, sw, sh, Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+}
 function drawIcon(ctx, emoji, x, y, px, color) {
+  const key = emoji.replace(/\uFE0F/g, '');
+  if (PX_EMOJI[key] && !color) return drawSprite(ctx, PX_EMOJI[key], x, y, px / 34 * 1.2);
   const s = iconSprite(emoji, px, color);
   if (s) ctx.drawImage(s, x - s.cssSize / 2, y - s.cssSize / 2, s.cssSize, s.cssSize);
 }
 // Draws text that may contain emoji, centred on x, with the emoji drawn as icons.
 function drawLabel(ctx, text, x, y, px, color) {
   const parts = text.split(EMOJI_RE).filter(p => p !== undefined && p !== '');
+  const isIcon = p => EMOJI_ICON[p] || PX_EMOJI[p];
   ctx.font = `${px}px "Lilita One", system-ui, sans-serif`;
   ctx.textAlign = 'left';
-  const widths = parts.map(p => (EMOJI_ICON[p] ? px * 1.15 : ctx.measureText(p).width));
+  const widths = parts.map(p => (isIcon(p) ? px * 1.15 : ctx.measureText(p).width));
   let cx = x - widths.reduce((a, b) => a + b, 0) / 2;
   parts.forEach((p, i) => {
-    if (EMOJI_ICON[p]) drawIcon(ctx, p, cx + widths[i] / 2, y, px * 1.1);
+    if (isIcon(p)) drawIcon(ctx, p, cx + widths[i] / 2, y, px * 1.1);
     else {
       ctx.lineWidth = Math.max(3, px * 0.22);
       ctx.strokeStyle = 'rgba(20,14,10,.85)';

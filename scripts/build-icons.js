@@ -9,7 +9,7 @@ const N = '#cfd6dd'; // neutral steel
 const WOOD = '#c8935a', GOLD = '#f5c542', GREEN = '#6fcf6f', STONE = '#9aa0a8';
 const MAP = {
   // ui
-  '⚒': ['anvil', '#e0a458'], '🪙': ['two-coins', GOLD], '🌲': ['pine-tree', '#3f9d5a'], '🛠': ['hammer-nails', '#d9a55b'],
+  '⚒': ['anvil', '#e0a458'], '👇': ['pointing', '#ffe08a'], '💨': ['sprint', '#9fd8ff'], '📣': ['shouting', '#ffb347'], '🪙': ['two-coins', GOLD], '🌲': ['pine-tree', '#3f9d5a'], '🛠': ['hammer-nails', '#d9a55b'],
   '🏪': ['shop', '#e08a3c'], '🏘': ['village', '#d98b5f'], '⚔': ['crossed-swords', N], '⬆': ['upgrade', GREEN],
   '📖': ['open-book', '#d9b98a'], '🌠': ['falling-star', '#ffd84a'], '⭐': ['round-star', '#ffd84a'], '🏅': ['medal', GOLD],
   '✉': ['envelope', '#e8d8a8'], '🔒': ['padlock', STONE], '❓': ['help', '#7d7468'], '▫': ['plain-circle', '#5a5148'],
